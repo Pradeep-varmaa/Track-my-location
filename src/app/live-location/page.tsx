@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
 // Forces this route to be treated as fully dynamic — opts it out of
 // Next's static prerendering/export step for this page specifically.
 // Harmless if you don't have `output: 'export'` in next.config.ts;
 // required if you do, since static export otherwise insists on
 // prerendering every route at build time.
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-import { useEffect, useRef, useState } from 'react';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useRef, useState } from "react";
+import "leaflet/dist/leaflet.css";
 
 type LatLng = [number, number];
 
@@ -22,7 +22,14 @@ export default function Page() {
 
   if (!mounted) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         Loading map…
       </div>
     );
@@ -35,9 +42,15 @@ export default function Page() {
 // <LiveLocationMap /> is never rendered until `mounted` is true above.
 function LiveLocationMap() {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { MapContainer, TileLayer, Marker, Popup, useMap } = require('react-leaflet');
+  const {
+    MapContainer,
+    TileLayer,
+    Marker,
+    Popup,
+    useMap,
+  } = require("react-leaflet");
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const L = require('leaflet');
+  const L = require("leaflet");
 
   const [displayPos, setDisplayPos] = useState<LatLng | null>(null);
   const currentRef = useRef<LatLng | null>(null);
@@ -48,9 +61,10 @@ function LiveLocationMap() {
   // since this whole function only runs post-mount) instead of at
   // module scope, so it can never be evaluated during a server pass.
   const carIcon = new L.Icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    iconRetinaUrl:
+      "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
     iconSize: [25, 41],
     iconAnchor: [12, 41],
   });
@@ -81,7 +95,7 @@ function LiveLocationMap() {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      alert("Geolocation is not supported by your browser");
       return;
     }
 
@@ -99,7 +113,7 @@ function LiveLocationMap() {
         }
       },
       (err) => console.error(err.message),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     );
 
     return () => {
@@ -113,24 +127,32 @@ function LiveLocationMap() {
   }
 
   return (
-    <div style={{ height: '100vh', width: '100%' }}>
-      <MapContainer center={displayPos} zoom={17} style={{ height: '100%', width: '100%' }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; OpenStreetMap contributors"
-        />
-        <Marker position={displayPos} icon={carIcon}>
-          <Popup>
-            Lat: {displayPos[0].toFixed(6)}, Lng: {displayPos[1].toFixed(6)}
-            {accuracy && (
-              <>
-                <br />±{Math.round(accuracy)}m
-              </>
-            )}
-          </Popup>
-        </Marker>
-        <FollowMarker position={displayPos} />
-      </MapContainer>
+    <div style={{ height: "100vh", width: "100%"}}>
+      <div style={{ height: "90vh", width: "100%", padding: "10px" , margin:"auto"}}>
+        <MapContainer
+          center={displayPos}
+          zoom={17}
+          style={{ height: "100%", width: "100%" }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenStreetMap contributors"
+          />
+          <Marker position={displayPos} icon={carIcon}>
+            <Popup>
+              Lat: {displayPos[0].toFixed(6)}, Lng: {displayPos[1].toFixed(6)}
+              {accuracy && (
+                <>
+                  <br />±{Math.round(accuracy)}m
+                </>
+              )}
+            </Popup>
+          </Marker>
+          <FollowMarker position={displayPos} />
+        </MapContainer>
+      </div>
+
+      <p>{displayPos[0]} , {displayPos[1]}</p>
     </div>
   );
 }
