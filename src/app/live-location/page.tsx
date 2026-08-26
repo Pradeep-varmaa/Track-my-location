@@ -1,64 +1,67 @@
-// 'use client'
+'use client';
 
-// import "leaflet/dist/leaflet.css";
-// import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-// import { useEffect, useState } from "react";
+// Forces this route to be treated as fully dynamic — opts it out of
+// Next's static prerendering/export step for this page specifically.
+// Harmless if you don't have `output: 'export'` in next.config.ts;
+// required if you do, since static export otherwise insists on
+// prerendering every route at build time.
+export const dynamic = 'force-dynamic';
 
-// export default function Livelocation() {
-
-//     const [position, setPosition] = useState<[number, number] | null>(null);
-//   useEffect(() => {
-//     if (!navigator.geolocation) {
-//       alert("Geolocation is not supported by your browser");
-//     }
-
-//     navigator.geolocation.watchPosition((position) => {
-//       const { latitude, longitude } = position.coords;
-//       console.log(`Latitude: ${latitude}, Longitude: ${longitude}`);
-//       setPosition([latitude, longitude])
-//     });
-//   }, []);
-
-//   return <div>{position ? `Latitude: ${position[0]}, Longitude: ${position[1]}` : "Location not available"
-  
-//   }</div>;
-// }
-
-
-
-'use client'
-
-import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import { useEffect, useRef, useState } from "react";
-import L from "leaflet";
+import { useEffect, useRef, useState } from 'react';
+import 'leaflet/dist/leaflet.css';
 
 type LatLng = [number, number];
 
-// Small helper: MapContainer's `center` prop only sets the initial view.
-// This component re-pans the map whenever `position` changes.
-function FollowMarker({ position }: { position: LatLng }) {
-  const map = useMap();
-  useEffect(() => {
-    map.panTo(position, { animate: true, duration: 1 });
-  }, [position, map]);
-  return null;
+export default function Page() {
+  // Nothing Leaflet-related runs until this flips true, which only
+  // happens after the component has mounted in the browser (useEffect
+  // never runs during server rendering). This is the real firewall —
+  // it doesn't depend on next/dynamic's ssr:false working correctly.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        Loading map…
+      </div>
+    );
+  }
+
+  return <LiveLocationMap />;
 }
 
-// Custom icon (default Leaflet marker icon breaks in Next.js bundling)
-const carIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+// Everything below this line only ever executes client-side, because
+// <LiveLocationMap /> is never rendered until `mounted` is true above.
+function LiveLocationMap() {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { MapContainer, TileLayer, Marker, Popup, useMap } = require('react-leaflet');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const L = require('leaflet');
 
-export default function LiveLocation() {
-  const [displayPos, setDisplayPos] = useState<LatLng | null>(null); // smoothed value shown on map
-  const currentRef = useRef<LatLng | null>(null); // current animated position
+  const [displayPos, setDisplayPos] = useState<LatLng | null>(null);
+  const currentRef = useRef<LatLng | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
+
+  // Icon is now constructed inside the component body (client-only,
+  // since this whole function only runs post-mount) instead of at
+  // module scope, so it can never be evaluated during a server pass.
+  const carIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+  });
+
+  function FollowMarker({ position }: { position: LatLng }) {
+    const map = useMap();
+    useEffect(() => {
+      map.panTo(position, { animate: true, duration: 1 });
+    }, [position, map]);
+    return null;
+  }
 
   const animate = (from: LatLng, to: LatLng, duration = 1500) => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -66,24 +69,19 @@ export default function LiveLocation() {
 
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
-      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
-
+      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
       const lat = from[0] + (to[0] - from[0]) * eased;
       const lng = from[1] + (to[1] - from[1]) * eased;
-
       currentRef.current = [lat, lng];
       setDisplayPos([lat, lng]);
-
-      if (t < 1) {
-        animFrameRef.current = requestAnimationFrame(step);
-      }
+      if (t < 1) animFrameRef.current = requestAnimationFrame(step);
     };
     animFrameRef.current = requestAnimationFrame(step);
   };
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      alert('Geolocation is not supported by your browser');
       return;
     }
 
@@ -94,7 +92,6 @@ export default function LiveLocation() {
         setAccuracy(accuracy);
 
         if (!currentRef.current) {
-          // first fix — no previous point to animate from, just set it
           currentRef.current = newPos;
           setDisplayPos(newPos);
         } else {
@@ -116,8 +113,8 @@ export default function LiveLocation() {
   }
 
   return (
-    <div style={{ height: "100vh", width: "100%" }}>
-      <MapContainer center={displayPos} zoom={17} style={{ height: "100%", width: "100%" }}>
+    <div style={{ height: '100vh', width: '100%' }}>
+      <MapContainer center={displayPos} zoom={17} style={{ height: '100%', width: '100%' }}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
@@ -125,7 +122,11 @@ export default function LiveLocation() {
         <Marker position={displayPos} icon={carIcon}>
           <Popup>
             Lat: {displayPos[0].toFixed(6)}, Lng: {displayPos[1].toFixed(6)}
-            {accuracy && <><br />±{Math.round(accuracy)}m</>}
+            {accuracy && (
+              <>
+                <br />±{Math.round(accuracy)}m
+              </>
+            )}
           </Popup>
         </Marker>
         <FollowMarker position={displayPos} />
