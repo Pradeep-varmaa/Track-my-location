@@ -1,22 +1,14 @@
 "use client";
-
-// Forces this route to be treated as fully dynamic — opts it out of
-// Next's static prerendering/export step for this page specifically.
-// Harmless if you don't have `output: 'export'` in next.config.ts;
-// required if you do, since static export otherwise insists on
-// prerendering every route at build time.
 export const dynamic = "force-dynamic";
 
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import geohash from 'ngeohash'
 
 type LatLng = [number, number];
 
 export default function Page() {
-  // Nothing Leaflet-related runs until this flips true, which only
-  // happens after the component has mounted in the browser (useEffect
-  // never runs during server rendering). This is the real firewall —
-  // it doesn't depend on next/dynamic's ssr:false working correctly.
+  
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -56,10 +48,8 @@ function LiveLocationMap() {
   const currentRef = useRef<LatLng | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [hash, sethash] = useState("")
 
-  // Icon is now constructed inside the component body (client-only,
-  // since this whole function only runs post-mount) instead of at
-  // module scope, so it can never be evaluated during a server pass.
   const carIcon = new L.Icon({
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
     iconRetinaUrl:
@@ -108,8 +98,13 @@ function LiveLocationMap() {
         if (!currentRef.current) {
           currentRef.current = newPos;
           setDisplayPos(newPos);
+          const hashed = geohash.encode(newPos[0], newPos[1])
+          sethash(hashed)
         } else {
           animate(currentRef.current, newPos);
+          const hashed = geohash.encode(newPos[0], newPos[1])
+          sethash(hashed)
+
         }
       },
       (err) => console.error(err.message),
@@ -153,6 +148,7 @@ function LiveLocationMap() {
       </div>
 
       <p>{displayPos[0]} , {displayPos[1]}</p>
+      <p>{hash}</p>
     </div>
   );
 }
